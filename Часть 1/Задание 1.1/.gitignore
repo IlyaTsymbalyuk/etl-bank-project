@@ -1,0 +1,14 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Конфиги с паролями
+config.py
+
+# VS Code
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
