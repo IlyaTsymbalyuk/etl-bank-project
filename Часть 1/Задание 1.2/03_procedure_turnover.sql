@@ -6,29 +6,28 @@ CREATE OR REPLACE PROCEDURE DS.FILL_ACCOUNT_TURNOVER_F(
 LANGUAGE plpgsql
 AS $$
 BEGIN
-    -- Удаляем старые данные за эту дату для возможности перезапуска
     DELETE FROM DM.DM_ACCOUNT_TURNOVER_F WHERE ON_DATE = i_OnDate;
     
-    -- Загружаем кредитовые обороты
+    -- Кредитовые обороты
     INSERT INTO DM.DM_ACCOUNT_TURNOVER_F (ON_DATE, ACCOUNT_RK, CREDIT_AMOUNT, CREDIT_AMOUNT_RUB)
     SELECT 
         i_OnDate,
         CREDIT_ACCOUNT_RK,
-        SUM(CREDIT_AMOUNT),
-        SUM(CREDIT_AMOUNT)
+        ROUND(SUM(CREDIT_AMOUNT)::NUMERIC, 2),
+        ROUND(SUM(CREDIT_AMOUNT)::NUMERIC, 2)
     FROM DS.FT_POSTING_F
     WHERE OPER_DATE = i_OnDate
       AND CREDIT_AMOUNT IS NOT NULL
       AND CREDIT_AMOUNT != 0
     GROUP BY CREDIT_ACCOUNT_RK;
     
-    -- Загружаем дебетовые обороты
+    -- Дебетовые обороты
     INSERT INTO DM.DM_ACCOUNT_TURNOVER_F (ON_DATE, ACCOUNT_RK, DEBET_AMOUNT, DEBET_AMOUNT_RUB)
     SELECT 
         i_OnDate,
         DEBET_ACCOUNT_RK,
-        SUM(DEBET_AMOUNT),
-        SUM(DEBET_AMOUNT)
+        ROUND(SUM(DEBET_AMOUNT)::NUMERIC, 2),
+        ROUND(SUM(DEBET_AMOUNT)::NUMERIC, 2)
     FROM DS.FT_POSTING_F
     WHERE OPER_DATE = i_OnDate
       AND DEBET_AMOUNT IS NOT NULL

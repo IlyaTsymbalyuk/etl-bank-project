@@ -1,6 +1,37 @@
--- Проверка результатов расчета витрин за январь 2018
+-- Задание 1.2: Полный расчёт и проверка результатов
 
--- 1. Проверка витрины оборотов: сколько записей по дням
+-- 1. Очищаем старые данные (для перезапуска)
+TRUNCATE TABLE DM.DM_ACCOUNT_TURNOVER_F;
+TRUNCATE TABLE DM.DM_ACCOUNT_BALANCE_F;
+
+-- 2. Инициализация остатков на 31.12.2017
+DELETE FROM DM.DM_ACCOUNT_BALANCE_F WHERE ON_DATE = '2017-12-31';
+
+INSERT INTO DM.DM_ACCOUNT_BALANCE_F (ON_DATE, ACCOUNT_RK, BALANCE_OUT, BALANCE_OUT_RUB)
+SELECT 
+    ON_DATE,
+    ACCOUNT_RK,
+    BALANCE_OUT,
+    BALANCE_OUT
+FROM DS.FT_BALANCE_F 
+WHERE ON_DATE = '2017-12-31';
+
+-- 3. Запуск расчёта за весь январь 2018
+DO $$
+DECLARE
+    d DATE;
+    start_date DATE := '2018-01-01';
+    end_date DATE := '2018-01-31';
+BEGIN
+    FOR d IN SELECT generate_series(start_date, end_date, '1 day'::interval)::DATE
+    LOOP
+        CALL DS.FILL_ACCOUNT_TURNOVER_F(d);
+        CALL DS.FILL_ACCOUNT_BALANCE_F(d);
+    END LOOP;
+END;
+$$;
+
+-- 4. Проверка витрины оборотов: сколько записей по дням
 SELECT 
     ON_DATE, 
     COUNT(*) as records_count,
@@ -11,7 +42,7 @@ WHERE ON_DATE BETWEEN '2018-01-01' AND '2018-01-31'
 GROUP BY ON_DATE
 ORDER BY ON_DATE;
 
--- 2. Проверка витрины остатков: сколько записей по дням
+-- 5. Проверка витрины остатков: сколько записей по дням
 SELECT 
     ON_DATE, 
     COUNT(*) as records_count,
@@ -21,58 +52,12 @@ WHERE ON_DATE BETWEEN '2018-01-01' AND '2018-01-31'
 GROUP BY ON_DATE
 ORDER BY ON_DATE;
 
--- 3. Просмотр логов выполнения
-SELECT 
-    LOG_ID,
-    TABLE_NAME,
-    OPERATION_TYPE,
-    START_TIME,
-    END_TIME,
-    ROWS_AFFECTED,
-    STATUS,
-    ERROR_MESSAGE
-FROM LOGS.ETL_LOG 
-WHERE OPERATION_TYPE IN ('TURNOVER_LOAD', 'BALANCE_LOAD', 'FULL_MONTH_LOAD')
-ORDER BY LOG_ID DESC
-LIMIT 20;
-
--- 4. Пример данных из витрины оборотов (первые 10 записей за 15 января)
+-- 6. Пример данных из витрины оборотов (первые 10 записей за 15 января)
 SELECT * FROM DM.DM_ACCOUNT_TURNOVER_F 
 WHERE ON_DATE = '2018-01-15' 
 LIMIT 10;
 
--- 5. Пример данных из витрины остатков (первые 10 записей за 15 января)
+-- 7. Пример данных из витрины остатков (первые 10 записей за 15 января)
 SELECT * FROM DM.DM_ACCOUNT_BALANCE_F 
 WHERE ON_DATE = '2018-01-15' 
 LIMIT 10;
-
-
--- Проверка, какой код реально находится в процедуре оборотов
-SELECT pg_get_functiondef(oid) 
-FROM pg_proc 
-WHERE proname = 'fill_account_turnover_f';
-
--- Очищаем
-DELETE FROM DM.DM_ACCOUNT_TURNOVER_F WHERE ON_DATE = '2018-01-15';
-
--- Вызываем процедуру (она выведет сообщение в консоль)
-CALL DS.FILL_ACCOUNT_TURNOVER_F('2018-01-15');
-
--- Вызываем процедуру остатков
-CALL DS.FILL_ACCOUNT_BALANCE_F('2018-01-15');
-
-SELECT 
-    ON_DATE, 
-    COUNT(*) as records_count
-FROM DM.DM_ACCOUNT_TURNOVER_F
-WHERE ON_DATE BETWEEN '2018-01-01' AND '2018-01-31'
-GROUP BY ON_DATE
-ORDER BY ON_DATE;
-
-SELECT 
-    ON_DATE, 
-    COUNT(*) as records_count
-FROM DM.DM_ACCOUNT_BALANCE_F
-WHERE ON_DATE BETWEEN '2018-01-01' AND '2018-01-31'
-GROUP BY ON_DATE
-ORDER BY ON_DATE;
